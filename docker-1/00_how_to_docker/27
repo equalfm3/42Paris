@@ -1,0 +1,2 @@
+## 27 ##
+docker service logs --follow $(docker service ps engineering-bay --quiet --filter NODE=Char --filter desired-state=Running)

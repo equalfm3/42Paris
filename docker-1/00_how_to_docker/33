@@ -1,0 +1,2 @@
+## 33 ##
+docker image rm $(docker image ls --quiet)

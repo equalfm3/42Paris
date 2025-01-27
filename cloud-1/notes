@@ -1,0 +1,141 @@
+EXPORTS CLI
+####################
+export WOF_AWS_REGION=us-west-2 <-- Change this to match your region
+export WOF_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+export WOF_ECS_CLUSTER_NAME=ecs-fargate-wordpressexport WOF_CFN_STACK_NAME=WordPress-on-Fargate
+
+
+CREATE BASE INFRA
+####################
+wget https://raw.githubusercontent.com/aws-samples/containers-blog-maelstrom/main/CloudFormation/wordpress-ecs-fargate.yaml
+
+aws cloudformation create-stack \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --region $WOF_AWS_REGION \
+  --template-body file://wordpress-ecs-fargate.yaml
+
+CHECK INFRA
+####################
+aws cloudformation wait stack-create-complete \
+--stack-name $(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query 'Stacks[0].StackId' --output text) \
+--region $WOF_AWS_REGION
+
+EXPORTS ENV
+####################
+
+export WOF_EFS_FS_ID=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='EFSFSId'].OutputValue" \
+  --output text)
+
+export WOF_EFS_AP=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='EFSAccessPoint'].OutputValue" \
+  --output text)
+
+export WOF_RDS_ENDPOINT=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='RDSEndpointAddress'].OutputValue" \
+  --output text)
+
+ export WOF_VPC_ID=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" \
+  --output text)
+
+export WOF_PUBLIC_SUBNET0=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PublicSubnet0'].OutputValue" \
+  --output text)
+
+export WOF_PUBLIC_SUBNET1=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PublicSubnet1'].OutputValue" \
+  --output text)
+
+export WOF_PRIVATE_SUBNET0=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnet0'].OutputValue" \
+  --output text)
+
+export WOF_PRIVATE_SUBNET1=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnet1'].OutputValue" \
+  --output text)
+
+export WOF_ALB_SG_ID=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='ALBSecurityGroup'].OutputValue" \
+  --output text)
+
+export WOF_TG_ARN=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='WordPressTargetGroup'].OutputValue" \
+  --output text)
+
+
+
+WATCH/DESCRIBE SERVICE
+####################
+watch aws ecs describe-services \
+  --services wof-efs-rw-service \
+  --cluster $WOF_ECS_CLUSTER_NAME \
+  --region $WOF_AWS_REGION \
+  --query 'services[].runningCount'
+
+UPDATE DESIRED COUNT
+####################
+  aws ecs update-service \
+    --cluster $WOF_ECS_CLUSTER_NAME \
+    --region $WOF_AWS_REGION \
+    --service wof-efs-rw-service \
+    --task-definition "$WOF_TASK_DEFINITION_ARN" \
+    --desired-count 2
+
+UPDATE DESIRED COUNT
+####################
+aws application-autoscaling \
+  register-scalable-target \
+  --region $WOF_AWS_REGION \
+  --service-namespace ecs \
+  --resource-id service/${WOF_ECS_CLUSTER_NAME}/wof-efs-rw-service \
+  --scalable-dimension ecs:service:DesiredCount \
+  --min-capacity 2 \
+  --max-capacity 4
+
+AUTOSCALING DOCUMENT
+####################
+cat > scaling.config.json << EOF
+{
+     "TargetValue": 75.0,
+     "PredefinedMetricSpecification": {
+         "PredefinedMetricType": "ECSServiceAverageCPUUtilization"
+     },
+     "ScaleOutCooldown": 60,
+    "ScaleInCooldown": 60
+}
+EOF
+
+CONF AUTOSCALING POLICY
+####################
+aws application-autoscaling put-scaling-policy \
+  --service-namespace ecs \
+  --scalable-dimension ecs:service:DesiredCount \
+  --resource-id service/${WOF_ECS_CLUSTER_NAME}/wof-efs-rw-service \
+  --policy-name cpu75-target-tracking-scaling-policy \
+  --policy-type TargetTrackingScaling \
+  --region $WOF_AWS_REGION \
+  --target-tracking-scaling-policy-configuration file://scaling.config.json

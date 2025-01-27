@@ -1,0 +1,28 @@
+## 19 ##
+
+#####CREATE ABATHUR CONTAINER#####
+docker run -it --name Abathur -v ~/:/root -p 3000:3000 python:2-slim /bin/bash
+#####UPDATE ABATHUR###############
+apt-get update -y && apt-get upgrade && pip install --upgrade pip
+#####INSTALLING A TEXT EDITOR#####
+apt-get install vim -y
+#####INSTALLING FLASK#############
+pip install flask
+
+#####CREATE an app.py file########
+vim /root/app.py
+
+SOF-----------------------------------------------
+from flask import Flask
+app = Flask(__name__)
+@app.route("/")
+def hello_world():
+	return "<h1>Hello, World</h1><h2>This is a simple Flask app launched in a container</h2><h3>mofikrat ;D</h3>"
+
+if __name__ == "__main__":
+	app.run(host='0.0.0.0', port=3000)
+-----------------------------------------------EOF
+
+####LAUNCH THE FLASK APP##########
+
+python /root/app.py

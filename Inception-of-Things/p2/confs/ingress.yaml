@@ -1,0 +1,53 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress # exposes app-* (from the app*.yaml) externally via the domain app*.com
+metadata:
+  name: app1-ingress
+spec:
+  rules:
+  - host: app1.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix # specified path will match all requests that start with /
+        backend:
+          service:
+            name: app-one # request to the root (/) are routed to app-* service
+            port:
+              number: 80 # traffic is forwarded to port 80
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app2-ingress
+spec:
+  rules:
+  - host: app2.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: app-two
+            port:
+              number: 80
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app3-ingress
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: app-three
+            port:
+              number: 80

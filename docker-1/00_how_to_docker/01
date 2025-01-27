@@ -1,0 +1,2 @@
+## 01 ##
+docker-machine create --driver virtualbox Char

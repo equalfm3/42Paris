@@ -1,0 +1,2 @@
+## 28 ##
+docker service create --detach --name marines --replicas 2 --network overmind -e OC_USERNAME=42user -e OC_PASSWD=42password 42school/marine-squad

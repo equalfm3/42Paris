@@ -1,0 +1,2 @@
+## 31 ##
+docker service rm $(docker service ls --quiet)

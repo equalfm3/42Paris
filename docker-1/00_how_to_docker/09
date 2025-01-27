@@ -1,0 +1,6 @@
+## 09 ##
+apt-get update
+apt-get install -y git build-essential manpages-dev man-db vim
+whereis gcc make
+gcc --version
+make -v

@@ -1,0 +1,2 @@
+## 08 ##
+docker run -it --rm alpine /bin/sh
