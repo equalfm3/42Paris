@@ -31,6 +31,7 @@
 ## About 42 School
 42 is a global coding school using peer-to-peer learning and project-based education to develop technical and collaborative skills essential for software development.
 
+This is a non-exhaustive list of projects I have done as part of my 42 Paris Journey:
 ## Table of Contents
 - [Graphics & Games](#graphics--games)
 - [System Programming](#system-programming)
